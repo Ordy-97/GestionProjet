@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import Project, { ProjectStatus } from '@/models/Project';
+import Project, { ProjectStatus, ProjectRole } from '@/models/Project';
 import { useAuth } from '@/hooks/useAuth';
 import Navbar from '@/components/Navbar';
 
@@ -24,13 +24,36 @@ export default function ProjectsPage() {
     }
 
     const fetchProjects = async () => {
-      const query = Project.query()
-        .equalTo('owner', user)
-        .include('owner');
-      
       try {
-        const results = await query.find();
-        setProjects(results);
+        // Récupérer les projets dont l'utilisateur est propriétaire
+        const ownedProjectsQuery = Project.query()
+          .equalTo('owner', user)
+          .include('owner');
+        
+        // Récupérer les projets où l'utilisateur est membre
+        const memberProjectsQuery = Project.query()
+          .equalTo('teamMembers', user)
+          .include('owner')
+          .include('teamMembers');
+        
+        const [ownedProjects, memberProjects] = await Promise.all([
+          ownedProjectsQuery.find(),
+          memberProjectsQuery.find()
+        ]);
+
+        // Combiner les projets et ajouter un indicateur de rôle
+        const allProjects = [
+          ...ownedProjects.map(project => {
+            project.role = 'owner';
+            return project;
+          }),
+          ...memberProjects.map(project => {
+            project.role = 'member';
+            return project;
+          })
+        ];
+
+        setProjects(allProjects);
       } catch (error) {
         console.error('Erreur lors de la récupération des projets:', error);
       } finally {
@@ -51,6 +74,28 @@ export default function ProjectsPage() {
         return 'bg-green-100 text-green-800';
       default:
         return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getRoleBadge = (role: ProjectRole) => {
+    switch (role) {
+      case 'owner':
+        return 'bg-indigo-100 text-indigo-800';
+      case 'member':
+        return 'bg-blue-100 text-blue-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getRoleText = (role: ProjectRole) => {
+    switch (role) {
+      case 'owner':
+        return 'Propriétaire';
+      case 'member':
+        return 'Collaborateur';
+      default:
+        return 'Membre';
     }
   };
 
@@ -101,13 +146,22 @@ export default function ProjectsPage() {
                     <h3 className="text-lg font-medium text-gray-900">
                       {project.name}
                     </h3>
-                    <span
-                      className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(
-                        project.status
-                      )}`}
-                    >
-                      {project.status}
-                    </span>
+                    <div className="flex gap-2">
+                      <span
+                        className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(
+                          project.status
+                        )}`}
+                      >
+                        {project.status}
+                      </span>
+                      <span
+                        className={`px-2 py-1 text-xs font-medium rounded-full ${getRoleBadge(
+                          project.role
+                        )}`}
+                      >
+                        {getRoleText(project.role)}
+                      </span>
+                    </div>
                   </div>
                   <p className="mt-2 text-sm text-gray-500 line-clamp-2">
                     {project.description}
@@ -124,12 +178,18 @@ export default function ProjectsPage() {
                     >
                       Voir
                     </Link>
-                    <Link
-                      href={`/projects/${project.id}/edit`}
-                      className="text-indigo-600 hover:text-indigo-900"
-                    >
-                      Modifier
-                    </Link>
+                    {project.role === 'owner' ? (
+                      <Link
+                        href={`/projects/${project.id}/edit`}
+                        className="text-indigo-600 hover:text-indigo-900"
+                      >
+                        Modifier
+                      </Link>
+                    ) : (
+                      <span className="text-gray-400 cursor-not-allowed">
+                        Modifier
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>

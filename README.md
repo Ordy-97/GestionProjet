@@ -22,7 +22,6 @@ Une application web moderne de gestion de projets construite avec Next.js et Bac
 
 - **Backend**:
   - Back4App (Parse Server)
-  - Base de données MongoDB hébergée
 
 ## 📋 Prérequis
 
@@ -133,3 +132,54 @@ yarn test
 
 
 ![Dashboard des Projets](./public/dashboard%20Projets.png)
+
+
+# Documentation des Relations et Pointeurs utilisés
+
+## Structure des Données
+
+### Projet (Project)
+- **Propriétaire (owner)**
+  - Type : Pointeur vers `_User`
+  - Description : L'utilisateur qui a créé le projet
+  - Accès : Lecture/Écriture pour le propriétaire, Lecture pour les membres
+
+- **Membres de l'équipe (teamMembers)**
+  - Type : Relation avec `_User`
+  - Description : Liste des utilisateurs collaborant sur le projet
+  - Accès : 
+    - Lecture : Tous les membres du projet
+    - Écriture : Uniquement le propriétaire (ajout/suppression de membres)
+
+### Utilisateur (_User)
+- **Projets créés**
+  - Type : Relation inverse avec `Project`
+  - Description : Liste des projets dont l'utilisateur est propriétaire
+  - Accès : Lecture/Écriture pour l'utilisateur concerné
+
+- **Projets en collaboration**
+  - Type : Relation inverse avec `Project`
+  - Description : Liste des projets où l'utilisateur est membre
+  - Accès : Lecture pour l'utilisateur concerné
+
+## Permissions
+
+### Projet
+- **Propriétaire**
+  - Peut modifier tous les champs du projet
+  - Peut ajouter/supprimer des membres
+  - Peut supprimer le projet
+
+- **Membre**
+  - Peut voir les détails du projet
+  - Peut voir la liste des membres
+  - Ne peut pas modifier le projet
+  - Ne peut pas gérer les membres
+
+### Utilisateur
+- **Profil personnel**
+  - Peut voir ses projets (créés et en collaboration) 
+
+
+  ![Gestion des membres du projet](./public/AjoutMembre1.png)
+  ![Liste des membres](./public/Membres.png)

@@ -80,7 +80,7 @@ export default function LoginPage() {
             </div>
             <div className="text-sm">
               <Link
-                href="/reset-password"
+                href="/auth/reset-password"
                 className="font-medium text-indigo-600 hover:text-indigo-500"
               >
                 Mot de passe oublié ?
