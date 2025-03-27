@@ -19,7 +19,7 @@ export default function ProjectMembersPage({ params }: ProjectMembersPageProps) 
   
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -77,7 +77,16 @@ export default function ProjectMembersPage({ params }: ProjectMembersPageProps) 
   }, [user]);
 
   useEffect(() => {
-    const fetchProject = async () => {
+    if (authLoading) {
+      return;
+    }
+
+    if (!user) {
+      router.push('/login');
+      return;
+    }
+
+    const fetchProjectAndMembers = async () => {
       try {
         const query = Project.query()
           .equalTo('objectId', resolvedParams.id)
@@ -91,9 +100,9 @@ export default function ProjectMembersPage({ params }: ProjectMembersPageProps) 
         }
 
         // Vérifier si l'utilisateur est propriétaire ou membre
-        const isOwner = result.owner && result.owner.id === user?.id;
+        const isOwner = result.owner && result.owner.id === user.id;
         const teamMembers = result.teamMembers || [];
-        const isMember = Array.isArray(teamMembers) && teamMembers.some(member => member.id === user?.id);
+        const isMember = Array.isArray(teamMembers) && teamMembers.some(member => member.id === user.id);
         
         if (!isOwner && !isMember) {
           setError('Vous n\'avez pas accès à ce projet');
@@ -101,18 +110,17 @@ export default function ProjectMembersPage({ params }: ProjectMembersPageProps) 
         }
 
         setProject(result);
-        // Initialiser directement les membres de l'équipe
         setTeamMembers(teamMembers);
       } catch (error) {
-        console.error('Erreur lors de la récupération du projet:', error);
-        setError('Une erreur est survenue lors de la récupération du projet');
+        console.error('Erreur:', error);
+        setError('Une erreur est survenue lors de la récupération des données');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchProject();
-  }, [resolvedParams.id, user]);
+    fetchProjectAndMembers();
+  }, [resolvedParams.id, user, router, authLoading]);
 
   const handleAddMember = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -190,30 +198,17 @@ export default function ProjectMembersPage({ params }: ProjectMembersPageProps) 
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
-      <main className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-6">
           <Link
             href={`/projects/${resolvedParams.id}`}
-            className="inline-flex items-center text-indigo-600 hover:text-indigo-900 mb-4"
+            className="text-indigo-600 hover:text-indigo-900 mb-4 inline-block"
           >
-            <svg
-              className="w-5 h-5 mr-2"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M10 19l-7-7m0 0l7-7m-7 7h18"
-              />
-            </svg>
-            Retour au projet
+            ← Retour au projet
           </Link>
-          <h1 className="text-3xl font-bold text-gray-900">Membres du Projet</h1>
+          <h1 className="text-3xl font-bold text-gray-900">Membres du projet</h1>
           <p className="mt-2 text-sm text-gray-600">
-            Liste des membres du projet &quot;{project?.name}&quot;
+            Gérez les membres de l&apos;équipe
           </p>
         </div>
 

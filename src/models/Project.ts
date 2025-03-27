@@ -3,19 +3,21 @@ import Parse from 'parse';
 export type ProjectStatus = 'À faire' | 'En cours' | 'Terminé';
 export type ProjectRole = 'owner' | 'member';
 
-interface ProjectAttributes {
+export interface ProjectAttributes {
   name: string;
   description: string;
   status: ProjectStatus;
   dueDate: Date;
   owner: Parse.User;
+  coverImage?: Parse.File;
   teamMembers?: Parse.User[];
+  documents?: Parse.Object[];
   role?: ProjectRole;
 }
 
-class Project extends Parse.Object {
-  constructor(attributes: ProjectAttributes) {
-    super('Project', attributes);
+export default class Project extends Parse.Object<ProjectAttributes> {
+  constructor(attributes?: Partial<ProjectAttributes>) {
+    super('Project', attributes as ProjectAttributes);
   }
 
   //méthode statique pour créer des requêtes Parse
@@ -63,19 +65,35 @@ class Project extends Parse.Object {
     this.set('owner', value);
   }
 
+  get coverImage(): Parse.File | undefined {
+    return this.get('coverImage');
+  }
+
+  set coverImage(value: Parse.File | undefined) {
+    this.set('coverImage', value);
+  }
+
   get teamMembers(): Parse.User[] {
     return this.get('teamMembers') || [];
   }
 
   set teamMembers(value: Parse.User[]) {
-    this.set('teamMembers', value || []);
+    this.set('teamMembers', value);
   }
 
-  get role(): ProjectRole {
-    return this.get('role') || 'member';
+  get documents(): Parse.Object[] {
+    return this.get('documents') || [];
   }
 
-  set role(value: ProjectRole) {
+  set documents(value: Parse.Object[]) {
+    this.set('documents', value);
+  }
+
+  get role(): ProjectRole | undefined {
+    return this.get('role');
+  }
+
+  set role(value: ProjectRole | undefined) {
     this.set('role', value);
   }
 
@@ -96,6 +114,4 @@ class Project extends Parse.Object {
   }
 }
 
-Parse.Object.registerSubclass('Project', Project);
-
-export default Project; 
+Parse.Object.registerSubclass('Project', Project); 

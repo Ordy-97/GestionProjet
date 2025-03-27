@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getParse } from '../lib/parse';
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 interface UserAttributes {
   email: string | null;
   username: string;
@@ -18,7 +17,6 @@ export const useAuth = () => {
         const Parse = await getParse();
         const currentUser = Parse.User.current();
         if (currentUser) {
-          // Vérifie si la session est toujours valide
           try {
             await currentUser.fetch();
             setUser(currentUser);
@@ -53,23 +51,18 @@ export const useAuth = () => {
     }
   };
 
-  const signUp = async (username: string, password: string, email: string, avatar?: unknown) => {
+  const signUp = async (username: string, password: string, email: string) => {
     try {
       const Parse = await getParse();
       const user = new Parse.User();
       user.set('username', username);
       user.set('password', password);
       user.set('email', email);
-      if (avatar) {
-        user.set('avatar', avatar);
-      }
   
-      // Créer une ACL avec accès en lecture public et accès d'écriture uniquement pour l'utilisateur
+      // Créer une ACL avec accès en lecture public
       const userACL = new Parse.ACL();
-      userACL.setPublicReadAccess(true); // Lecture publique activée
-      //userACL.setWriteAccess(user.id, true); // Écriture uniquement pour l'utilisateur lui-même
-  
-      user.setACL(userACL); // Associer l'ACL à l'utilisateur
+      userACL.setPublicReadAccess(true);
+      user.setACL(userACL);
   
       const signedUpUser = await user.signUp();
       setUser(signedUpUser);
@@ -79,7 +72,6 @@ export const useAuth = () => {
       return { success: false, error };
     }
   };
-  
 
   const signOut = async () => {
     try {
