@@ -1,18 +1,21 @@
-import Parse from '@/lib/parse';
+import Parse from 'parse';
 
 export type ProjectStatus = 'À faire' | 'En cours' | 'Terminé';
+export type ProjectRole = 'owner' | 'member';
 
-export interface ProjectAttributes {
-  name?: string;
-  description?: string;
-  dueDate?: Date;
-  status?: ProjectStatus;
-  owner?: Parse.User;
+interface ProjectAttributes {
+  name: string;
+  description: string;
+  status: ProjectStatus;
+  dueDate: Date;
+  owner: Parse.User;
+  teamMembers?: Parse.User[];
+  role?: ProjectRole;
 }
 
-export class Project extends Parse.Object<ProjectAttributes> {
-  constructor(attributes?: ProjectAttributes) {
-    super('Project', attributes || {});
+class Project extends Parse.Object {
+  constructor(attributes: ProjectAttributes) {
+    super('Project', attributes);
   }
 
   //méthode statique pour créer des requêtes Parse
@@ -21,7 +24,7 @@ export class Project extends Parse.Object<ProjectAttributes> {
   }
 
   get name(): string {
-    return this.get('name') || '';
+    return this.get('name');
   }
 
   set name(value: string) {
@@ -29,35 +32,67 @@ export class Project extends Parse.Object<ProjectAttributes> {
   }
 
   get description(): string {
-    return this.get('description') || '';
+    return this.get('description');
   }
 
   set description(value: string) {
     this.set('description', value);
   }
 
-  get dueDate(): Date {
-    return this.get('dueDate') || new Date();
-  }
-
-  set dueDate(value: Date) {
-    this.set('dueDate', value);
-  }
-
   get status(): ProjectStatus {
-    return this.get('status') || 'À faire';
+    return this.get('status');
   }
 
   set status(value: ProjectStatus) {
     this.set('status', value);
   }
 
-  get owner(): Parse.User | undefined {
+  get dueDate(): Date {
+    return this.get('dueDate');
+  }
+
+  set dueDate(value: Date) {
+    this.set('dueDate', value);
+  }
+
+  get owner(): Parse.User {
     return this.get('owner');
   }
 
-  set owner(value: Parse.User | undefined) {
+  set owner(value: Parse.User) {
     this.set('owner', value);
+  }
+
+  get teamMembers(): Parse.User[] {
+    return this.get('teamMembers') || [];
+  }
+
+  set teamMembers(value: Parse.User[]) {
+    this.set('teamMembers', value || []);
+  }
+
+  get role(): ProjectRole {
+    return this.get('role') || 'member';
+  }
+
+  set role(value: ProjectRole) {
+    this.set('role', value);
+  }
+
+  async isTeamMember(user: Parse.User): Promise<boolean> {
+    return this.teamMembers.some(member => member.id === user.id);
+  }
+
+  addTeamMember(user: Parse.User): void {
+    const currentMembers = this.teamMembers;
+    if (!currentMembers.some(m => m.id === user.id)) {
+      this.set('teamMembers', [...currentMembers, user]);
+    }
+  }
+
+  removeTeamMember(user: Parse.User): void {
+    const currentMembers = this.teamMembers;
+    this.set('teamMembers', currentMembers.filter(m => m.id !== user.id));
   }
 }
 

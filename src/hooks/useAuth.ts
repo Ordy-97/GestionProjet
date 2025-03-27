@@ -56,15 +56,23 @@ export const useAuth = () => {
       user.set('username', username);
       user.set('password', password);
       user.set('email', email);
-      
+  
+      // Créer une ACL avec accès en lecture public et accès d'écriture uniquement pour l'utilisateur
+      const userACL = new Parse.ACL();
+      userACL.setPublicReadAccess(true); // Lecture publique activée
+      //userACL.setWriteAccess(user.id, true); // Écriture uniquement pour l'utilisateur lui-même
+  
+      user.setACL(userACL); // Associer l'ACL à l'utilisateur
+  
       const signedUpUser = await user.signUp();
       setUser(signedUpUser);
       return { success: true };
     } catch (error) {
-      console.error('Erreur d\'inscription:', error);
+      console.error("Erreur d'inscription:", error);
       return { success: false, error };
     }
   };
+  
 
   const signOut = async () => {
     try {

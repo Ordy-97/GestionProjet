@@ -36,7 +36,8 @@ export default function ProjectPage({ params }: ProjectPageProps) {
       try {
         const query = Project.query()
           .equalTo('objectId', resolvedParams.id)
-          .include('owner');
+          .include('owner')
+          .include('teamMembers');
         const result = await query.first();
         
         if (!result) {
@@ -44,7 +45,12 @@ export default function ProjectPage({ params }: ProjectPageProps) {
           return;
         }
 
-        if (!result.owner || result.owner.id !== user.id) {
+        // Vérifier si l'utilisateur est propriétaire ou membre
+        const isOwner = result.owner && result.owner.id === user.id;
+        const teamMembers = result.teamMembers || [];
+        const isMember = Array.isArray(teamMembers) && teamMembers.some(member => member.id === user.id);
+        
+        if (!isOwner && !isMember) {
           setError('Vous n\'avez pas accès à ce projet');
           return;
         }
@@ -124,10 +130,10 @@ export default function ProjectPage({ params }: ProjectPageProps) {
     <div className="min-h-screen bg-gray-50">
       <Navbar />
       <main className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-6">
+        <div className="flex justify-between items-center mb-6">
           <Link
             href="/projects"
-            className="inline-flex items-center text-indigo-600 hover:text-indigo-900 mb-4"
+            className="inline-flex items-center text-indigo-600 hover:text-indigo-900"
           >
             <svg
               className="w-5 h-5 mr-2"
@@ -144,6 +150,78 @@ export default function ProjectPage({ params }: ProjectPageProps) {
             </svg>
             Retour aux projets
           </Link>
+          <div className="flex gap-2">
+            <Link
+              href={`/projects/${resolvedParams.id}/members`}
+              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            >
+              <svg
+                className="w-5 h-5 mr-2"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+                />
+              </svg>
+              Voir les membres
+            </Link>
+            {project?.owner.id === user?.id ? (
+              <>
+                <Link
+                  href={`/projects/${resolvedParams.id}/edit`}
+                  className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                >
+                  <svg
+                    className="w-5 h-5 mr-2"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                    />
+                  </svg>
+                  Modifier
+                </Link>
+                <button
+                  onClick={handleDelete}
+                  className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 transition-colors"
+                >
+                  Supprimer
+                </button>
+              </>
+            ) : (
+              <div className="mt-6 flex justify-end">
+                <button
+                  disabled
+                  className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-500 bg-gray-100 cursor-not-allowed"
+                >
+                  <svg
+                    className="w-5 h-5 mr-2"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                    />
+                  </svg>
+                  Modifier (Accès restreint)
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="bg-white shadow-lg rounded-lg overflow-hidden">
@@ -152,13 +230,24 @@ export default function ProjectPage({ params }: ProjectPageProps) {
               <h3 className="text-lg leading-6 font-medium text-gray-900">
                 {project.name}
               </h3>
-              <span
-                className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(
-                  project.status
-                )}`}
-              >
-                {project.status}
-              </span>
+              <div className="flex items-center gap-2">
+                <span
+                  className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(
+                    project.status
+                  )}`}
+                >
+                  {project.status}
+                </span>
+                {project.owner.id === user?.id ? (
+                  <span className="px-3 py-1 text-sm font-semibold rounded-full bg-indigo-100 text-indigo-800 border border-indigo-200">
+                    Propriétaire - {project.owner.get('username')}
+                  </span>
+                ) : (
+                  <span className="px-3 py-1 text-sm font-semibold rounded-full bg-blue-100 text-blue-800 border border-blue-200">
+                    Collaborateur - {user?.get('username')}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
           <div className="border-t border-gray-200">
@@ -177,21 +266,6 @@ export default function ProjectPage({ params }: ProjectPageProps) {
               </div>
             </dl>
           </div>
-        </div>
-
-        <div className="mt-6 flex justify-end space-x-3">
-          <Link
-            href={`/projects/${project.id}/edit`}
-            className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 transition-colors"
-          >
-            Modifier
-          </Link>
-          <button
-            onClick={handleDelete}
-            className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 transition-colors"
-          >
-            Supprimer
-          </button>
         </div>
       </main>
     </div>
