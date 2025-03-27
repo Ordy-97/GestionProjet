@@ -183,3 +183,11 @@ yarn test
 
   ![Gestion des membres du projet](./public/AjoutMembre1.png)
   ![Liste des membres](./public/Membres.png)
+
+
+
+#Livrable 3
+
+  ![Photo de profil](./public/photoProfil.png)
+  ![Insertion des documents](./public/insertionDoc.png)
+  ![Gestion des documents](./public/Documents.png)

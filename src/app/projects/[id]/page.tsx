@@ -3,10 +3,12 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import Project, { ProjectStatus } from '@/models/Project';
+import Image from 'next/image';
+import Project from '@/models/Project';
 import { useAuth } from '@/hooks/useAuth';
 import { use } from 'react';
 import Navbar from '@/components/Navbar';
+import { FileUtils } from '@/lib/fileUtils';
 
 interface ProjectPageProps {
   params: Promise<{
@@ -17,7 +19,7 @@ interface ProjectPageProps {
 export default function ProjectPage({ params }: ProjectPageProps) {
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
   const resolvedParams = use(params);
@@ -36,8 +38,8 @@ export default function ProjectPage({ params }: ProjectPageProps) {
       try {
         const query = Project.query()
           .equalTo('objectId', resolvedParams.id)
-          .include('owner')
-          .include('teamMembers');
+          .include(['owner', 'teamMembers'])
+          .include(['documents']);
         const result = await query.first();
         
         if (!result) {
@@ -57,8 +59,8 @@ export default function ProjectPage({ params }: ProjectPageProps) {
 
         setProject(result);
       } catch (error) {
-        setError('Erreur lors de la récupération du projet');
-        console.error('Erreur:', error);
+        console.error('Erreur lors de la récupération du projet:', error);
+        setError('Une erreur est survenue lors de la récupération du projet');
       } finally {
         setLoading(false);
       }
@@ -66,33 +68,6 @@ export default function ProjectPage({ params }: ProjectPageProps) {
 
     fetchProject();
   }, [resolvedParams.id, user, router, authLoading]);
-
-  const handleDelete = async () => {
-    if (!project || !confirm('Êtes-vous sûr de vouloir supprimer ce projet ?')) {
-      return;
-    }
-
-    try {
-      await project.destroy();
-      router.push('/projects');
-    } catch (error) {
-      setError('Erreur lors de la suppression du projet');
-      console.error('Erreur:', error);
-    }
-  };
-
-  const getStatusColor = (status: ProjectStatus) => {
-    switch (status) {
-      case 'À faire':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'En cours':
-        return 'bg-blue-100 text-blue-800';
-      case 'Terminé':
-        return 'bg-green-100 text-green-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
 
   if (authLoading || loading) {
     return (
@@ -129,144 +104,182 @@ export default function ProjectPage({ params }: ProjectPageProps) {
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
-      <main className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex justify-between items-center mb-6">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="mb-6">
           <Link
             href="/projects"
-            className="inline-flex items-center text-indigo-600 hover:text-indigo-900"
+            className="text-indigo-600 hover:text-indigo-900 mb-4 inline-block"
           >
-            <svg
-              className="w-5 h-5 mr-2"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M10 19l-7-7m0 0l7-7m-7 7h18"
-              />
-            </svg>
-            Retour aux projets
+            ← Retour aux projets
           </Link>
-          <div className="flex gap-2">
-            <Link
-              href={`/projects/${resolvedParams.id}/members`}
-              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-            >
-              <svg
-                className="w-5 h-5 mr-2"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+        </div>
+        {loading ? (
+          <div className="text-center">Chargement...</div>
+        ) : error ? (
+          <div className="text-center text-red-600">{error}</div>
+        ) : project ? (
+          <div className="bg-white shadow-lg rounded-lg overflow-hidden">
+            {project.coverImage && (
+              <div className="relative h-64">
+                <Image
+                  src={FileUtils.getFileUrl(project.coverImage)}
+                  alt={`Couverture du projet ${project.name}`}
+                  fill
+                  className="object-cover"
+                  priority
                 />
-              </svg>
-              Voir les membres
-            </Link>
-            {project?.owner.id === user?.id ? (
-              <>
-                <Link
-                  href={`/projects/${resolvedParams.id}/edit`}
-                  className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                >
-                  <svg
-                    className="w-5 h-5 mr-2"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                    />
-                  </svg>
-                  Modifier
-                </Link>
-                <button
-                  onClick={handleDelete}
-                  className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 transition-colors"
-                >
-                  Supprimer
-                </button>
-              </>
-            ) : (
-              <div className="mt-6 flex justify-end">
-                <button
-                  disabled
-                  className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-500 bg-gray-100 cursor-not-allowed"
-                >
-                  <svg
-                    className="w-5 h-5 mr-2"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                    />
-                  </svg>
-                  Modifier (Accès restreint)
-                </button>
               </div>
             )}
-          </div>
-        </div>
-
-        <div className="bg-white shadow-lg rounded-lg overflow-hidden">
-          <div className="px-4 py-5 sm:px-6">
-            <div className="flex justify-between items-center">
-              <h3 className="text-lg leading-6 font-medium text-gray-900">
-                {project.name}
-              </h3>
-              <div className="flex items-center gap-2">
-                <span
-                  className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(
-                    project.status
-                  )}`}
-                >
-                  {project.status}
-                </span>
-                {project.owner.id === user?.id ? (
-                  <span className="px-3 py-1 text-sm font-semibold rounded-full bg-indigo-100 text-indigo-800 border border-indigo-200">
-                    Propriétaire - {project.owner.get('username')}
-                  </span>
-                ) : (
-                  <span className="px-3 py-1 text-sm font-semibold rounded-full bg-blue-100 text-blue-800 border border-blue-200">
-                    Collaborateur - {user?.get('username')}
-                  </span>
+            <div className="p-6">
+              <div className="flex justify-between items-start">
+                <div>
+                  <h1 className="text-3xl font-bold text-gray-900">{project.name}</h1>
+                  <p className="mt-2 text-gray-600">{project.description}</p>
+                </div>
+                {project.owner && user && project.owner.id === user.id && (
+                  <Link
+                    href={`/projects/${resolvedParams.id}/edit`}
+                    className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                  >
+                    Modifier
+                  </Link>
                 )}
+              </div>
+
+              <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2">
+                <div>
+                  <h2 className="text-lg font-medium text-gray-900">Informations</h2>
+                  <dl className="mt-4 space-y-4">
+                    <div>
+                      <dt className="text-sm font-medium text-gray-500">Statut</dt>
+                      <dd className="mt-1 text-sm text-gray-900">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          project.status === 'Terminé' ? 'bg-green-100 text-green-800' :
+                          project.status === 'En cours' ? 'bg-blue-100 text-blue-800' :
+                          'bg-gray-100 text-gray-800'
+                        }`}>
+                          {project.status}
+                        </span>
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-sm font-medium text-gray-500">Date limite</dt>
+                      <dd className="mt-1 text-sm text-gray-900">
+                        {new Date(project.dueDate).toLocaleDateString('fr-FR')}
+                      </dd>
+                    </div>
+                  </dl>
+                </div>
+
+                <div>
+                  <h2 className="text-lg font-medium text-gray-900">Équipe</h2>
+                  <div className="mt-4">
+                    <Link
+                      href={`/projects/${resolvedParams.id}/members`}
+                      className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                    >
+                      Gérer les membres
+                    </Link>
+                  </div>
+                </div>
+
+                <div>
+                  <h2 className="text-lg font-medium text-gray-900">Documents</h2>
+                  <div className="mt-4 space-y-4">
+                    <div className="flex gap-2">
+                      <Link
+                        href={`/projects/${resolvedParams.id}/documents/new`}
+                        className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                      >
+                        <svg
+                          className="w-5 h-5 mr-2"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M12 4v16m8-8H4"
+                          />
+                        </svg>
+                        Ajouter un document
+                      </Link>
+                      <Link
+                        href={`/projects/${resolvedParams.id}/documents`}
+                        className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                      >
+                        <svg
+                          className="w-5 h-5 mr-2"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                          />
+                        </svg>
+                        Gérer les documents
+                      </Link>
+                    </div>
+
+                    {/* Liste des documents */}
+                    <div className="mt-6">
+                      <h3 className="text-sm font-medium text-gray-500 mb-4">Documents du projet</h3>
+                      <div className="space-y-4">
+                        {project.documents && project.documents.length > 0 ? (
+                          project.documents.map((doc) => (
+                            <div
+                              key={doc.id}
+                              className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-lg hover:bg-gray-50"
+                            >
+                              <div className="flex items-center space-x-3">
+                                <svg
+                                  className="w-6 h-6 text-gray-400"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                                  />
+                                </svg>
+                                <div>
+                                  <h4 className="text-sm font-medium text-gray-900">{doc.get('title')}</h4>
+                                  <p className="text-sm text-gray-500">
+                                    Ajouté par {doc.get('uploadedBy')?.get('username')} le{' '}
+                                    {new Date(doc.get('uploadDate')).toLocaleDateString()}
+                                  </p>
+                                </div>
+                              </div>
+                              <a
+                                href={FileUtils.getFileUrl(doc.get('file'))}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center px-3 py-1 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                              >
+                                Télécharger
+                              </a>
+                            </div>
+                          ))
+                        ) : (
+                          <p className="text-sm text-gray-500">Aucun document</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-          <div className="border-t border-gray-200">
-            <dl>
-              <div className="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                <dt className="text-sm font-medium text-gray-500">Description</dt>
-                <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
-                  {project.description}
-                </dd>
-              </div>
-              <div className="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                <dt className="text-sm font-medium text-gray-500">Date limite</dt>
-                <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
-                  {project.dueDate.toLocaleDateString()}
-                </dd>
-              </div>
-            </dl>
-          </div>
-        </div>
+        ) : null}
       </main>
     </div>
   );

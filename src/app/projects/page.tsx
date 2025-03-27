@@ -3,9 +3,10 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import Project, { ProjectStatus, ProjectRole } from '@/models/Project';
+import Project from '@/models/Project';
 import { useAuth } from '@/hooks/useAuth';
 import Navbar from '@/components/Navbar';
+import { FileUtils } from '@/lib/fileUtils';
 
 export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -32,7 +33,7 @@ export default function ProjectsPage() {
         
         // Récupérer les projets où l'utilisateur est membre
         const memberProjectsQuery = Project.query()
-          .equalTo('teamMembers', user)
+          .contains('teamMembers', user.id)
           .include('owner')
           .include('teamMembers');
         
@@ -64,41 +65,6 @@ export default function ProjectsPage() {
     fetchProjects();
   }, [user, router, authLoading]);
 
-  const getStatusColor = (status: ProjectStatus) => {
-    switch (status) {
-      case 'À faire':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'En cours':
-        return 'bg-blue-100 text-blue-800';
-      case 'Terminé':
-        return 'bg-green-100 text-green-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const getRoleBadge = (role: ProjectRole) => {
-    switch (role) {
-      case 'owner':
-        return 'bg-indigo-100 text-indigo-800';
-      case 'member':
-        return 'bg-blue-100 text-blue-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const getRoleText = (role: ProjectRole) => {
-    switch (role) {
-      case 'owner':
-        return 'Propriétaire';
-      case 'member':
-        return 'Collaborateur';
-      default:
-        return 'Membre';
-    }
-  };
-
   if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -118,81 +84,139 @@ export default function ProjectsPage() {
           <h1 className="text-3xl font-bold text-gray-900">Mes Projets</h1>
           <Link
             href="/projects/new"
-            className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 transition-colors"
+            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
           >
-            Nouveau Projet
+            <svg
+              className="w-5 h-5 mr-2"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 4v16m8-8H4"
+              />
+            </svg>
+            Nouveau projet
           </Link>
         </div>
 
-        {projects.length === 0 ? (
-          <div className="bg-white rounded-lg shadow-lg p-8 text-center">
-            <p className="text-gray-500">Vous n&apos;avez pas encore de projets.</p>
-            <Link
-              href="/projects/new"
-              className="text-indigo-600 hover:text-indigo-900 mt-2 inline-block"
+        {loading ? (
+          <div className="flex justify-center items-center h-64">
+            <div className="text-gray-600">Chargement...</div>
+          </div>
+        ) : projects.length === 0 ? (
+          <div className="text-center py-12">
+            <svg
+              className="mx-auto h-12 w-12 text-gray-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
             >
-              Créer votre premier projet
-            </Link>
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+              />
+            </svg>
+            <h3 className="mt-2 text-sm font-medium text-gray-900">Aucun projet</h3>
+            <p className="mt-1 text-sm text-gray-500">
+              Commencez par créer un nouveau projet.
+            </p>
+            <div className="mt-6">
+              <Link
+                href="/projects/new"
+                className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              >
+                <svg
+                  className="w-5 h-5 mr-2"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 4v16m8-8H4"
+                  />
+                </svg>
+                Nouveau projet
+              </Link>
+            </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {projects.map((project) => (
-              <div
+              <Link
                 key={project.id}
-                className="bg-white overflow-hidden shadow-lg rounded-lg hover:shadow-xl transition-shadow"
+                href={`/projects/${project.id}`}
+                className="block bg-white rounded-lg shadow hover:shadow-lg transition-shadow duration-200"
               >
-                <div className="p-5">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-medium text-gray-900">
-                      {project.name}
-                    </h3>
-                    <div className="flex gap-2">
-                      <span
-                        className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(
-                          project.status
-                        )}`}
+                <div className="relative h-48">
+                  {project.coverImage ? (
+                    <img
+                      src={FileUtils.getFileUrl(project.coverImage)}
+                      alt="Image de couverture"
+                      className="w-full h-full object-cover rounded-t-lg"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gray-200 flex items-center justify-center rounded-t-lg">
+                      <svg
+                        className="h-12 w-12 text-gray-400"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
                       >
-                        {project.status}
-                      </span>
-                      <span
-                        className={`px-2 py-1 text-xs font-medium rounded-full ${getRoleBadge(
-                          project.role
-                        )}`}
-                      >
-                        {getRoleText(project.role)}
-                      </span>
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                        />
+                      </svg>
                     </div>
-                  </div>
-                  <p className="mt-2 text-sm text-gray-500 line-clamp-2">
-                    {project.description}
-                  </p>
-                  <div className="mt-4">
-                    <p className="text-sm text-gray-500">
-                      Date limite: {project.dueDate.toLocaleDateString()}
-                    </p>
-                  </div>
-                  <div className="mt-4 flex justify-end space-x-3">
-                    <Link
-                      href={`/projects/${project.id}`}
-                      className="text-indigo-600 hover:text-indigo-900"
+                  )}
+                  <div className="absolute top-2 right-2">
+                    <span
+                      className={`px-2 py-1 text-xs font-medium rounded-full ${
+                        project.status === 'À faire'
+                          ? 'bg-yellow-100 text-yellow-800'
+                          : project.status === 'En cours'
+                          ? 'bg-blue-100 text-blue-800'
+                          : 'bg-green-100 text-green-800'
+                      }`}
                     >
-                      Voir
-                    </Link>
-                    {project.role === 'owner' ? (
-                      <Link
-                        href={`/projects/${project.id}/edit`}
-                        className="text-indigo-600 hover:text-indigo-900"
-                      >
-                        Modifier
-                      </Link>
-                    ) : (
-                      <span className="text-gray-400 cursor-not-allowed">
-                        Modifier
-                      </span>
-                    )}
+                      {project.status}
+                    </span>
                   </div>
                 </div>
-              </div>
+                <div className="p-4">
+                  <h3 className="text-lg font-medium text-gray-900">{project.name}</h3>
+                  <p className="mt-1 text-sm text-gray-500 line-clamp-2">
+                    {project.description}
+                  </p>
+                  <div className="mt-4 flex items-center justify-between">
+                    <div className="flex items-center">
+                      <span className="text-sm text-gray-500">
+                        Date limite : {project.dueDate.toLocaleDateString()}
+                      </span>
+                    </div>
+                    <span
+                      className={`px-2 py-1 text-xs font-medium rounded-full ${
+                        project.role === 'owner'
+                          ? 'bg-indigo-100 text-indigo-800'
+                          : 'bg-blue-100 text-blue-800'
+                      }`}
+                    >
+                      {project.role === 'owner' ? 'Propriétaire' : 'Collaborateur'}
+                    </span>
+                  </div>
+                </div>
+              </Link>
             ))}
           </div>
         )}

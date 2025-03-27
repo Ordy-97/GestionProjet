@@ -8,6 +8,9 @@
     "start": "next start",
     "lint": "next lint"
   },
+  "browser":{
+    "child_process": false
+  },
   "dependencies": {
     "next": "15.2.4",
     "parse": "^3.4.1",

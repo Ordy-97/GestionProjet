@@ -35,6 +35,14 @@ export default function HomePage() {
                 <span className="text-indigo-500 mr-2">•</span>
                 Collaborer efficacement
               </li>
+              <li className="flex items-center">
+                <span className="text-indigo-500 mr-2">•</span>
+                Gérer les documents et images relatifs au projet
+              </li>
+              <li className="flex items-center">
+                <span className="text-indigo-500 mr-2">•</span>
+                Récupérer les mots de passe oubliés et ajouter une photo de profil
+              </li>
             </ul>
           </div>
         </div>
